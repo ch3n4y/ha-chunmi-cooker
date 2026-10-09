@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+  <!-- 深色主题版：暗底，标记保持一致的可读性 -->
+  <rect width="512" height="512" fill="#0B3B39"/>
+
+  <g fill="none" stroke="#FCD34D" stroke-width="18" stroke-linecap="round">
+    <path d="M206 150 C 190 120 224 106 208 72"/>
+    <path d="M306 150 C 322 120 288 106 304 72"/>
+  </g>
+
+  <rect x="228" y="158" width="56" height="40" rx="16" fill="#94A3B8"/>
+
+  <rect x="112" y="196" width="288" height="60" rx="30" fill="#E2E8F0"/>
+
+  <rect x="142" y="250" width="228" height="196" rx="34" fill="#F8FAFC"/>
+
+  <rect x="206" y="310" width="100" height="22" rx="11" fill="#F59E0B"/>
+
+  <circle cx="256" cy="392" r="18" fill="#0B3B39"/>
+</svg>

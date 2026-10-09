@@ -3,6 +3,15 @@
 本项目的所有重要变更都会记录在这里。
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.1] - 2026-10-09
+
+### 新增
+
+- **品牌图标**：新增 `custom_components/chunmi_cooker/brand/icon.png` 与
+  `dark_icon.png`（256×256），Home Assistant 2024.11+ 会在集成页面显示它，
+  不再是一片空白占位。矢量源文件放在 `brand-src/`（`icon.svg` / `icon-dark.svg`），
+  用 macOS 自带 `qlmanage` 即可重新栅格化。
+
 ## [0.1.0] - 2026-10-09
 
 首个版本。
@@ -41,4 +50,5 @@
 - 仅在淳米 EH 系列机型上验证过协议细节。
 - 本版本已通过静态校验与协议/编解码层验证；**尚未在真实 Home Assistant 实例中完成端到端运行验证**。
 
+[0.1.1]: https://github.com/ch3n4y/ha-chunmi-cooker/releases/tag/v0.1.1
 [0.1.0]: https://github.com/ch3n4y/ha-chunmi-cooker/releases/tag/v0.1.0
