@@ -3,6 +3,39 @@
 本项目的所有重要变更都会记录在这里。
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.4] - 2026-10-09
+
+### 新增
+
+- **局域网（miIO）直连控制**。官方 `xiaomi_home` 的局域网发现走 **mDNS 组播**，
+  跨不了网段（HA 在 `192.168.27.x`、设备在 `192.168.26.x` 时就永远发现不到），
+  导致即使设备单播可达、token 也有，读写依然全部回落云端。
+
+  本版本自己实现了 miIO 报文层（`lan.py`），用「**已知 IP + device token**」单播直连，
+  完全绕过 mDNS：
+
+  - 报文格式与官方 `miot_lan.py` **逐字节一致**（已用独立转写的参照实现做比对测试）
+  - `AES128-CBC`，`key = md5(token)`、`iv = md5(key + token)`，整包 md5 校验
+  - 局域网**会明确返回设备错误码**，不再像云端路径那样失败也不吭声
+  - 局域网失败自动回落云端通道，不会让集成变脆
+
+- **集成的可配置项（Options Flow）**：
+  - **状态轮询间隔**：可选「不主动轮询 / 30 / 60 / 120 / 300 / 600 秒」
+  - **局域网直连开关 + 设备局域网 IP**（例如 `192.168.26.179`）
+  - 选项变更后自动重载条目，立即生效
+
+- 新增 **`chunmi_cooker.lan_test`** 服务：用配置的 IP + token 做一次单播握手并读一个属性，
+  返回是否成功、耗时（毫秒）、状态原值 —— 验证局域网能否使用最直接的方法。
+
+- `chunmi_cooker.diagnose` 服务增加本集成自身的状态：轮询间隔、当前数据来源
+  （`lan:192.168.26.179` / `cloud`）、局域网开关与实际错误原因。
+
+### 测试
+
+- 新增 `tests/test_lan.py`：把官方 `miot_lan.py` 的 `gen_packet` / `decrypt_packet`
+  逻辑独立转写一份作参照，与 `lan.py` 输出**逐字节比对**；另覆盖头部字段、
+  解密回环、非 ASCII 载荷、错误 token 拒绝、参数校验。
+
 ## [0.1.3] - 2026-10-09
 
 ### 新增
@@ -80,6 +113,7 @@
 - 仅在淳米 EH 系列机型上验证过协议细节。
 - 本版本已通过静态校验与协议/编解码层验证；**尚未在真实 Home Assistant 实例中完成端到端运行验证**。
 
+[0.1.4]: https://github.com/ch3n4y/ha-chunmi-cooker/releases/tag/v0.1.4
 [0.1.3]: https://github.com/ch3n4y/ha-chunmi-cooker/releases/tag/v0.1.3
 [0.1.2]: https://github.com/ch3n4y/ha-chunmi-cooker/releases/tag/v0.1.2
 [0.1.1]: https://github.com/ch3n4y/ha-chunmi-cooker/releases/tag/v0.1.1

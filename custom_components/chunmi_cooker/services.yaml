@@ -131,8 +131,21 @@ list_recipes:
 diagnose:
   name: 通道诊断
   description: >-
-    显示这台设备「云端 / 局域网 / 中枢网关」三条通道的实际状态，以及是否已持有
-    设备 token（局域网控制必需）。不会返回 token 原文，只给长度与掩码。
+    显示这台设备「云端 / 局域网 / 中枢网关」三条通道的实际状态、本集成的轮询间隔与
+    当前数据来源，以及是否已持有设备 token（局域网控制必需）。
+    不会返回 token 原文，只给长度与掩码。
+  fields:
+    did:
+      name: 设备 ID
+      selector:
+        text:
+
+lan_test:
+  name: 局域网自检
+  description: >-
+    用配置的局域网 IP + device token 做一次单播握手，读取一个属性来验证：
+    IP 是否可达、token 是否正确、回包 md5 是否通过。返回耗时（毫秒）。
+    这是验证「局域网直连能不能用」最直接的方法。
   fields:
     did:
       name: 设备 ID

@@ -30,6 +30,7 @@ from .const import (
     SERVICE_CANCEL,
     SERVICE_DIAGNOSE,
     SERVICE_GET_STATUS,
+    SERVICE_LAN_TEST,
     SERVICE_LIST_RECIPES,
     SERVICE_SET_RESERVATION,
     SERVICE_START_NOW,
@@ -183,7 +184,23 @@ async def _svc_diagnose(hass: HomeAssistant, call: ServiceCall) -> dict:
         "note": (
             "lan_available=true 时写操作会走局域网（官方客户端在「自动」模式下优先 LAN）。"
             "若 ctrl_mode=CLOUD，请在 Xiaomi Home 集成配置里把控制模式改成「自动」。"),
+        # 本集成自身的设置与状态
+        "integration": {
+            "scan_interval_seconds": coord._scan_interval,  # noqa: SLF001
+            "state_source": coord._source,                  # noqa: SLF001
+            "lan_direct_enabled": coord.lan_enabled,
+            "lan_direct_ip": coord._lan_ip or None,         # noqa: SLF001
+            "lan_direct_error": coord._lan_error,           # noqa: SLF001
+            "note": ("官方集成的局域网发现走 mDNS 组播，跨不了网段；"
+                     "填了局域网 IP 并开启「局域网直连」后，本集成会用单播绕过发现。"),
+        },
     }
+
+
+async def _svc_lan_test(hass: HomeAssistant, call: ServiceCall) -> dict:
+    """局域网握手自检：验证设备 IP 可达、device token 正确。"""
+    coord = _resolve_coordinator(hass, call.data.get("did"))
+    return await coord.async_lan_test()
 
 
 # --------------------------------------------------------------------- 生命周期
@@ -207,7 +224,13 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await _register(SERVICE_GET_STATUS, TARGET_SCHEMA, _svc_get_status)
     await _register(SERVICE_LIST_RECIPES, LIST_RECIPES_SCHEMA, _svc_list_recipes)
     await _register(SERVICE_DIAGNOSE, TARGET_SCHEMA, _svc_diagnose)
+    await _register(SERVICE_LAN_TEST, TARGET_SCHEMA, _svc_lan_test)
     return True
+
+
+async def _async_options_updated(hass: HomeAssistant, entry: ConfigEntry) -> None:
+    """选项变更（轮询间隔 / 局域网直连）后重载条目使其生效。"""
+    await hass.config_entries.async_reload(entry.entry_id)
 
 
 async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
@@ -223,10 +246,13 @@ async def async_setup_entry(hass: HomeAssistant, entry: ConfigEntry) -> bool:
         return False
 
     coordinator = ChunmiCookerCoordinator(
-        hass, miot_client=client, did=did, model=model, name=name)
+        hass, miot_client=client, did=did, model=model, name=name,
+        options=dict(entry.options))
     await coordinator.async_config_entry_first_refresh()
 
     hass.data[DOMAIN][entry.entry_id] = coordinator
+    # 选项（轮询间隔 / 局域网直连）变化后自动重载，让新设置立即生效
+    entry.async_on_unload(entry.add_update_listener(_async_options_updated))
 
     # 把实体挂到官方集成建的同一个设备上，UI 里就是一个设备
     device_registry = dr.async_get(hass)

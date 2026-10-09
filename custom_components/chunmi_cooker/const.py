@@ -70,8 +70,16 @@ FAULT_NAMES = {
 
 # 状态轮询周期（秒）。设备是推送型，这里只做轻量兜底刷新。
 DEFAULT_SCAN_INTERVAL = 60
+MIN_SCAN_INTERVAL = 10
+MAX_SCAN_INTERVAL = 3600
+# 可选档位（秒）。0 表示不主动轮询（完全依赖推送 / 手动刷新）
+SCAN_INTERVAL_CHOICES = (0, 30, 60, 120, 300, 600)
 # 食谱（含加热曲线）缓存有效期（秒）
 RECIPE_CACHE_TTL = 6 * 3600
+
+# 局域网（miIO）默认端口
+LAN_PORT = 54321
+LAN_TIMEOUT = 5.0
 
 # 服务名
 SERVICE_SET_RESERVATION = "set_reservation"
@@ -80,7 +88,13 @@ SERVICE_CANCEL = "cancel"
 SERVICE_GET_STATUS = "get_status"
 SERVICE_LIST_RECIPES = "list_recipes"
 SERVICE_DIAGNOSE = "diagnose"
+SERVICE_LAN_TEST = "lan_test"
 
 CONF_DID = "did"
 CONF_MODEL = "model"
 CONF_NAME = "name"
+
+# 可配置项（Options Flow）
+CONF_SCAN_INTERVAL = "scan_interval"
+CONF_USE_LAN = "use_lan"
+CONF_LAN_IP = "lan_ip"

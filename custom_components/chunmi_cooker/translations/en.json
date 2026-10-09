@@ -17,6 +17,24 @@
       "no_cooker_found": "No Chunmi rice cooker found (model must start with `chunmi.cooker.`). Make sure the device is bound in Mi Home and synced to Xiaomi Home."
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Rice cooker settings",
+        "description": "Device did: `{did}`",
+        "data": {
+          "scan_interval": "Status poll interval",
+          "use_lan": "Enable direct LAN connection",
+          "lan_ip": "Device LAN IP"
+        },
+        "data_description": {
+          "scan_interval": "How often to actively poll the status. The device is push-based; this is only a safety-net refresh. Choose \"no polling\" to rely on push only.",
+          "use_lan": "Bypass the official Xiaomi Home integration's mDNS discovery and connect to the device by unicast. That discovery uses multicast, which cannot cross subnets.",
+          "lan_ip": "For example 192.168.26.179. When enabled, reads and writes prefer the LAN path and fall back to the cloud automatically."
+        }
+      }
+    }
+  },
   "entity": {
     "sensor": {
       "status": { "name": "Status" },

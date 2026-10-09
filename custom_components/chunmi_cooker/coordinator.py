@@ -15,8 +15,12 @@ from homeassistant.util import dt as dt_util
 from .const import (
     AIID_COOKING_CANCEL,
     AIID_COOKING_START,
+    CONF_LAN_IP,
+    CONF_SCAN_INTERVAL,
+    CONF_USE_LAN,
     DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    LAN_TIMEOUT,
     PIID_AUTO_KEEPWARM_FLAG,
     PIID_BOIL,
     PIID_COOK_DATA,
@@ -37,6 +41,7 @@ from .const import (
 )
 from .cookprofile import MENU_NAMES, TREAT_LABELS, CookProfile
 from .joyami import JoyamiClient
+from .lan import MiotLanClient, MiotLanError
 
 _LOGGER = logging.getLogger(__name__)
 
@@ -69,19 +74,122 @@ class ChunmiCookerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         did: str,
         model: str,
         name: str,
+        options: dict[str, Any] | None = None,
     ) -> None:
+        options = options or {}
+        self._scan_interval = int(
+            options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL))
         super().__init__(
             hass,
             _LOGGER,
             name=f"{DOMAIN}:{did}",
-            update_interval=timedelta(seconds=DEFAULT_SCAN_INTERVAL),
+            update_interval=(
+                timedelta(seconds=self._scan_interval)
+                if self._scan_interval > 0 else None
+            ),
         )
         self.miot_client = miot_client
         self.did = did
         self.model = model
         self.device_name = name
+        # 局域网直连（绕过官方集成的 mDNS 发现：跨网段时 mDNS 到不了设备）
+        self._use_lan = bool(options.get(CONF_USE_LAN, False))
+        self._lan_ip = str(options.get(CONF_LAN_IP) or "").strip()
+        self._lan: MiotLanClient | None = None
+        self._lan_error: str | None = None
+        self._source: str = "unknown"
         self._recipes: list[dict] = []
         self._recipes_ts: float = 0.0
+
+    # ------------------------------------------------------------ 局域网直连
+    @property
+    def lan_enabled(self) -> bool:
+        return self._use_lan and bool(self._lan_ip)
+
+    def _lan_client(self) -> MiotLanClient | None:
+        """按需构造局域网客户端；token 取自官方集成（不落盘、不外泄）。"""
+        if not self.lan_enabled:
+            return None
+        if self._lan is not None:
+            return self._lan
+        device = (getattr(self.miot_client, "device_list", None) or {}).get(self.did)
+        if not isinstance(device, dict):
+            self._lan_error = "在 xiaomi_home 里找不到该设备"
+            return None
+        token = device.get("token")
+        if not isinstance(token, str) or len(token) != 32:
+            self._lan_error = "官方集成里没有可用的 device token"
+            return None
+        try:
+            self._lan = MiotLanClient(
+                self.did, token, self._lan_ip, timeout=LAN_TIMEOUT)
+            self._lan_error = None
+        except MiotLanError as err:
+            self._lan_error = str(err)
+            return None
+        return self._lan
+
+    async def _async_lan_read(self) -> dict[str, Any] | None:
+        """走局域网批量读 13 个属性；失败返回 None 交给云端兜底。"""
+        client = self._lan_client()
+        if client is None:
+            return None
+        params = [{"did": self.did, "siid": siid, "piid": piid}
+                  for siid, piid in PROPS.values()]
+        try:
+            results = await self.hass.async_add_executor_job(
+                client.get_properties_sync, params)
+        except Exception as err:  # pylint: disable=broad-exception-caught
+            self._lan_error = str(err)
+            _LOGGER.debug("局域网读取失败，回退云端: %s", err)
+            return None
+        by_id = {
+            (item.get("siid"), item.get("piid")): item.get("value")
+            for item in results or []
+            if isinstance(item, dict) and "value" in item
+        }
+        if not by_id:
+            self._lan_error = "局域网返回空结果"
+            return None
+        self._lan_error = None
+        return {key: by_id.get(sid) for key, sid in PROPS.items()}
+
+    async def async_lan_test(self) -> dict[str, Any]:
+        """局域网握手自检：验证 IP 可达、token 正确、回包 md5 通过。
+
+        **不会返回 token 原文**，只给是否存在与掩码。
+        """
+        device = (getattr(self.miot_client, "device_list", None) or {}).get(self.did)
+        token = device.get("token") if isinstance(device, dict) else None
+
+        result: dict[str, Any] = {
+            "did": self.did,
+            "model": self.model,
+            "lan_enabled": self.lan_enabled,
+            "lan_ip": self._lan_ip or None,
+            "has_device_token": isinstance(token, str) and len(token) == 32,
+            "token_masked": (
+                f"{token[:4]}…{token[-4:]}"
+                if isinstance(token, str) and len(token) >= 8 else None),
+            "current_source": self._source,
+        }
+
+        client = self._lan_client()
+        if client is None:
+            result["ok"] = False
+            result["error"] = self._lan_error or (
+                "局域网未启用：请在集成选项里打开「局域网直连」并填写设备 IP")
+            return result
+
+        try:
+            result.update(await self.hass.async_add_executor_job(
+                client.self_test_sync))
+            self._lan_error = None
+        except Exception as err:  # pylint: disable=broad-exception-caught
+            result["ok"] = False
+            result["error"] = str(err)
+            self._lan_error = str(err)
+        return result
 
     # ------------------------------------------------------------- 状态读取
     async def _async_read_props(self) -> dict[str, Any]:
@@ -95,6 +203,14 @@ class ChunmiCookerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         这里改成直接走云端批量接口（一次请求取全部，且对 0/False 正确），
         再用官方客户端的单点读取兜底（覆盖 LAN / 中枢网关设备）。
         """
+        # 1) 局域网直连优先（可选：绕过官方集成的 mDNS 发现，跨网段也能用）
+        if self.lan_enabled:
+            lan_data = await self._async_lan_read()
+            if lan_data is not None:
+                self._source = f"lan:{self._lan_ip}"
+                return lan_data
+
+        # 2) 云端批量读取
         http = getattr(self.miot_client, "miot_http", None) or getattr(
             self.miot_client, "_http", None)
         results: list = []
@@ -136,6 +252,7 @@ class ChunmiCookerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 except Exception as err:  # pylint: disable=broad-exception-caught
                     _LOGGER.debug("读取属性 %s 失败: %s", key, err)
             data[key] = value
+        self._source = "cloud"
         return data
 
     async def _async_update_data(self) -> dict[str, Any]:
@@ -233,15 +350,37 @@ class ChunmiCookerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return {"recipe": item, "profile": profile}
 
     # ---------------------------------------------------------------- 写入
-    async def async_send_cookcode(self, cookcode: str) -> list:
+    async def _async_action(self, siid: int, aiid: int, in_list: list) -> Any:
+        """下发动作：先试局域网直连，失败/被拒再走官方客户端（云端或中枢网关）。
+
+        好处是局域网会**明确返回错误码**，不像云端路径那样失败也不吭声。
+        """
+        client = self._lan_client()
+        if client is not None:
+            try:
+                result = await self.hass.async_add_executor_job(
+                    client.action_sync, siid, aiid, in_list)
+                code = result.get("code") if isinstance(result, dict) else None
+                if code in (0, 1):
+                    self._source = f"lan:{self._lan_ip}"
+                    self._lan_error = None
+                    return result.get("out", [])
+                self._lan_error = f"设备返回 code={code}"
+                _LOGGER.warning(
+                    "局域网动作被设备拒绝 (code=%s)，回落云端通道重试", code)
+            except Exception as err:  # pylint: disable=broad-exception-caught
+                self._lan_error = str(err)
+                _LOGGER.warning("局域网动作失败，回落云端通道: %s", err)
+        return await self.miot_client.action_async(self.did, siid, aiid, in_list)
+
+    async def async_send_cookcode(self, cookcode: str) -> Any:
         """cooking-start 动作：siid=3 aiid=1，入参就是完整 cookcode。"""
-        return await self.miot_client.action_async(
-            self.did, SIID_CUSTOM, AIID_COOKING_START,
+        return await self._async_action(
+            SIID_CUSTOM, AIID_COOKING_START,
             [{"piid": PIID_COOK_DATA, "value": cookcode}])
 
-    async def async_cancel(self) -> list:
-        return await self.miot_client.action_async(
-            self.did, SIID_CUSTOM, AIID_COOKING_CANCEL, [])
+    async def async_cancel(self) -> Any:
+        return await self._async_action(SIID_CUSTOM, AIID_COOKING_CANCEL, [])
 
     async def async_set_reservation(
         self,

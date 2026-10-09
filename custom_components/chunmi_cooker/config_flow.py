@@ -10,7 +10,8 @@ import logging
 from typing import Any
 
 import voluptuous as vol
-from homeassistant.config_entries import ConfigFlow, ConfigFlowResult
+from homeassistant.config_entries import ConfigFlow, ConfigFlowResult, OptionsFlow
+from homeassistant.helpers import config_validation as cv
 from homeassistant.helpers.selector import (
     SelectOptionDict,
     SelectSelector,
@@ -20,9 +21,14 @@ from homeassistant.helpers.selector import (
 
 from .const import (
     CONF_DID,
+    CONF_LAN_IP,
     CONF_MODEL,
     CONF_NAME,
+    CONF_SCAN_INTERVAL,
+    CONF_USE_LAN,
+    DEFAULT_SCAN_INTERVAL,
     DOMAIN,
+    SCAN_INTERVAL_CHOICES,
     SUPPORTED_MODEL_PREFIXES,
     XIAOMI_HOME_DOMAIN,
 )
@@ -136,3 +142,44 @@ class ChunmiCookerConfigFlow(ConfigFlow, domain=DOMAIN):
     ) -> ConfigFlowResult:
         """允许重新选择设备。"""
         return await self.async_step_user(user_input)
+
+    @staticmethod
+    def async_get_options_flow(config_entry) -> "ChunmiCookerOptionsFlow":
+        return ChunmiCookerOptionsFlow()
+
+
+class ChunmiCookerOptionsFlow(OptionsFlow):
+    """可调项：状态轮询间隔、是否启用局域网直连、设备局域网 IP。"""
+
+    async def async_step_init(
+        self, user_input: dict[str, Any] | None = None
+    ) -> ConfigFlowResult:
+        if user_input is not None:
+            return self.async_create_entry(data=user_input)
+
+        options = self.config_entry.options
+        current_interval = int(
+            options.get(CONF_SCAN_INTERVAL, DEFAULT_SCAN_INTERVAL))
+        current_use_lan = bool(options.get(CONF_USE_LAN, False))
+        current_lan_ip = options.get(CONF_LAN_IP, "")
+
+        choices = list(SCAN_INTERVAL_CHOICES)
+        if current_interval not in choices:
+            choices.append(current_interval)
+            choices.sort()
+
+        schema = vol.Schema({
+            vol.Optional(CONF_SCAN_INTERVAL, default=current_interval): vol.In(
+                {value: ("不主动轮询（仅推送）" if value == 0 else f"{value} 秒")
+                 for value in choices}),
+            vol.Optional(CONF_USE_LAN, default=current_use_lan): cv.boolean,
+            vol.Optional(CONF_LAN_IP, default=current_lan_ip): cv.string,
+        })
+
+        return self.async_show_form(
+            step_id="init",
+            data_schema=schema,
+            description_placeholders={
+                "did": self.config_entry.data.get(CONF_DID, ""),
+            },
+        )

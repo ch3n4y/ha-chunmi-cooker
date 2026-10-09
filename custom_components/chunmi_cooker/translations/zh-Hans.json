@@ -19,6 +19,24 @@
       "no_cooker_found": "在 Xiaomi Home 里没有找到淳米电饭煲（机型需以 `chunmi.cooker.` 开头）。请确认设备已加入米家并同步到 Xiaomi Home。"
     }
   },
+  "options": {
+    "step": {
+      "init": {
+        "title": "电饭煲设置",
+        "description": "设备 did：`{did}`",
+        "data": {
+          "scan_interval": "状态轮询间隔",
+          "use_lan": "启用局域网直连",
+          "lan_ip": "设备局域网 IP"
+        },
+        "data_description": {
+          "scan_interval": "每隔多久主动查询一次状态。设备本身是推送型，这里只做兜底刷新；选「不主动轮询」则完全依赖推送与手动刷新。",
+          "use_lan": "绕过官方 Xiaomi Home 集成的 mDNS 发现，改为单播直连设备。官方发现走组播，跨不了网段（例如 HA 在 192.168.27.x、设备在 192.168.26.x）。",
+          "lan_ip": "例如 192.168.26.179。开启上面的开关并填写后，读写会优先走局域网；失败自动回落云端通道。"
+        }
+      }
+    }
+  },
   "entity": {
     "sensor": {
       "status": { "name": "工作状态" },
