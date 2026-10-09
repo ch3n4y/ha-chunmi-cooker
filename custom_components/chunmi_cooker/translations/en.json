@@ -1,0 +1,37 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Select a rice cooker",
+        "description": "{count} Chunmi rice cooker(s) found in the Xiaomi Home integration. Pick the one to add.",
+        "data": { "did": "Device" }
+      },
+      "confirm": {
+        "title": "Confirm",
+        "description": "Device: **{name}**\nModel: `{model}`\nState: {state}\n\nNote: the cooker is a Wi-Fi device that sleeps. Status may not refresh immediately while it is asleep, and commands issued during deep sleep are queued by the cloud until it wakes up."
+      }
+    },
+    "abort": {
+      "already_configured": "This cooker is already configured.",
+      "xiaomi_home_not_configured": "Set up the official **Xiaomi Home** integration first. This integration reuses its account session and cloud channel — no extra credentials needed.",
+      "no_cooker_found": "No Chunmi rice cooker found (model must start with `chunmi.cooker.`). Make sure the device is bound in Mi Home and synced to Xiaomi Home."
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": { "name": "Status" },
+      "menu_name": { "name": "Current menu" },
+      "cook_total_time": { "name": "Cook time" },
+      "left_time": { "name": "Time left" },
+      "pre_left_time": { "name": "Reservation countdown" },
+      "keepwarm_time": { "name": "Keep-warm time" },
+      "finish_timestamp": { "name": "Finish time" },
+      "taste": { "name": "Taste" },
+      "recipe_type": { "name": "Recipe type" },
+      "rice_type": { "name": "Rice type" },
+      "fault": { "name": "Fault" },
+      "auto_keepwarm": { "name": "Auto keep warm" },
+      "boil": { "name": "Boil flag" }
+    }
+  }
+}

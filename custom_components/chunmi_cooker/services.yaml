@@ -1,0 +1,129 @@
+set_reservation:
+  name: 预约烹饪
+  description: 按官方 App 的流程武装一次预约烹饪（自动拉取对应菜单的加热曲线并写入预约参数）。
+  fields:
+    menu:
+      name: 菜单
+      description: 菜单名（如「煮粥」「精煮饭」「超快饭」「保温」）或 menuId（1/2/3/4）。
+      required: true
+      example: 煮粥
+      selector:
+        text:
+    finish_time:
+      name: 完成时间
+      description: 期望烹饪完成的时刻，HH:MM（今天已过则算明天）。与 delay_minutes 二选一。
+      example: "06:00"
+      selector:
+        text:
+    delay_minutes:
+      name: 预约时长
+      description: 从现在起多少分钟后完成。与 finish_time 二选一。
+      selector:
+        number:
+          min: 0
+          max: 1440
+          unit_of_measurement: 分钟
+    cook_minutes:
+      name: 烹饪时长
+      description: 覆盖菜单默认时长。超出该菜单允许区间会报错。
+      selector:
+        number:
+          min: 1
+          max: 1440
+          unit_of_measurement: 分钟
+    taste:
+      name: 口感
+      description: 0=软 1=适中 2=硬。官方仅「精煮饭」菜单支持，其它菜单写入后可能被忽略。
+      selector:
+        select:
+          options:
+            - label: 软
+              value: "0"
+            - label: 适中
+              value: "1"
+            - label: 硬
+              value: "2"
+    auto_keep_warm:
+      name: 自动保温
+      description: 烹饪完成后是否自动进入保温。
+      selector:
+        boolean:
+    upload:
+      name: 上报淳米云
+      description: 是否额外执行官方 App 的 uploadCookData 上报（默认开启，与官方行为一致）。
+      default: true
+      selector:
+        boolean:
+    did:
+      name: 设备 ID
+      description: 添加了多个电饭煲时用来指定目标。
+      selector:
+        text:
+
+start_now:
+  name: 立即开煮
+  description: 立刻开始烹饪（不预约）。
+  fields:
+    menu:
+      name: 菜单
+      required: true
+      example: 精煮饭
+      selector:
+        text:
+    cook_minutes:
+      name: 烹饪时长
+      selector:
+        number:
+          min: 1
+          max: 1440
+          unit_of_measurement: 分钟
+    taste:
+      name: 口感
+      selector:
+        select:
+          options:
+            - label: 软
+              value: "0"
+            - label: 适中
+              value: "1"
+            - label: 硬
+              value: "2"
+    auto_keep_warm:
+      name: 自动保温
+      selector:
+        boolean:
+    did:
+      name: 设备 ID
+      selector:
+        text:
+
+cancel:
+  name: 取消烹饪 / 预约
+  fields:
+    did:
+      name: 设备 ID
+      selector:
+        text:
+
+get_status:
+  name: 获取状态
+  description: 返回电饭煲全部 MIoT 属性的当前值。
+  fields:
+    did:
+      name: 设备 ID
+      selector:
+        text:
+
+list_recipes:
+  name: 列出食谱
+  description: 列出淳米云为本机型提供的食谱（加热曲线通过 cookcode 动态获取，不在代码里硬编码）。
+  fields:
+    refresh:
+      name: 强制刷新
+      default: false
+      selector:
+        boolean:
+    did:
+      name: 设备 ID
+      selector:
+        text:

@@ -1,0 +1,24 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+
+# Home Assistant
+config/
+.storage/
+home-assistant*.log
+*.db
+*.db-journal
+
+# secrets — never commit
+.env*
+secrets.yaml
+*_token*
+*token.txt
+
+# editors / OS
+.DS_Store
+.idea/
+.vscode/

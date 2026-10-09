@@ -1,0 +1,39 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "选择电饭煲",
+        "description": "在 Xiaomi Home 集成里发现 {count} 台淳米电饭煲，请选择要添加的。",
+        "data": {
+          "did": "设备"
+        }
+      },
+      "confirm": {
+        "title": "确认添加",
+        "description": "设备：**{name}**\n机型：`{model}`\n当前状态：{state}\n\n提示：电饭煲是 Wi-Fi 休眠设备，离线/休眠时状态可能不会立刻刷新；下发指令时若设备正在深度休眠，云端会排队等它唤醒。"
+      }
+    },
+    "abort": {
+      "already_configured": "这台电饭煲已经添加过了。",
+      "xiaomi_home_not_configured": "请先在「设置 → 设备与服务」里添加官方 **Xiaomi Home** 集成，本集成会复用它已登录的账号与云端通道（不需要再填密钥）。",
+      "no_cooker_found": "在 Xiaomi Home 里没有找到淳米电饭煲（机型需以 `chunmi.cooker.` 开头）。请确认设备已加入米家并同步到 Xiaomi Home。"
+    }
+  },
+  "entity": {
+    "sensor": {
+      "status": { "name": "工作状态" },
+      "menu_name": { "name": "当前菜单" },
+      "cook_total_time": { "name": "烹饪时长" },
+      "left_time": { "name": "剩余时长" },
+      "pre_left_time": { "name": "预约剩余时间" },
+      "keepwarm_time": { "name": "保温时长" },
+      "finish_timestamp": { "name": "烹饪完成时间" },
+      "taste": { "name": "口感" },
+      "recipe_type": { "name": "食谱类型" },
+      "rice_type": { "name": "米种" },
+      "fault": { "name": "故障" },
+      "auto_keepwarm": { "name": "自动保温" },
+      "boil": { "name": "水开标志" }
+    }
+  }
+}
