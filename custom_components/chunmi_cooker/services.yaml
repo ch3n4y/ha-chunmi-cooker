@@ -127,3 +127,14 @@ list_recipes:
       name: 设备 ID
       selector:
         text:
+
+diagnose:
+  name: 通道诊断
+  description: >-
+    显示这台设备「云端 / 局域网 / 中枢网关」三条通道的实际状态，以及是否已持有
+    设备 token（局域网控制必需）。不会返回 token 原文，只给长度与掩码。
+  fields:
+    did:
+      name: 设备 ID
+      selector:
+        text:

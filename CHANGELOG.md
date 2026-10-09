@@ -3,6 +3,21 @@
 本项目的所有重要变更都会记录在这里。
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.3] - 2026-10-09
+
+### 新增
+
+- **`chunmi_cooker.diagnose` 服务**：显示这台设备「云端 / 局域网 / 中枢网关」三条通道的
+  实际状态，以及是否已持有局域网控制所需的 device token（只返回长度与掩码，**不返回原文**）。
+
+  背景：淳米电饭煲的 miIO 局域网接口监听 **UDP/54321**，但它需要 16 字节 device token
+  才能建立会话（`aes_key = md5(token)`）。官方 `xiaomi_home` 是从云端设备列表里拿到
+  token 再交给它的 LAN 模块的，所以 token 本来就存在 HA 里；**是否真的走局域网**
+  取决于集成的控制模式（自动 / 仅云端），而这一点从外部读不到——本服务就是把它照出来。
+
+  若 `ctrl_mode` 显示 `CLOUD`，在 Xiaomi Home 的集成选项里把控制模式改成「自动」即可
+  启用局域网优先；`lan_available=true` 时写操作会自动走 LAN。
+
 ## [0.1.2] - 2026-10-09
 
 ### 修复
@@ -65,6 +80,7 @@
 - 仅在淳米 EH 系列机型上验证过协议细节。
 - 本版本已通过静态校验与协议/编解码层验证；**尚未在真实 Home Assistant 实例中完成端到端运行验证**。
 
+[0.1.3]: https://github.com/ch3n4y/ha-chunmi-cooker/releases/tag/v0.1.3
 [0.1.2]: https://github.com/ch3n4y/ha-chunmi-cooker/releases/tag/v0.1.2
 [0.1.1]: https://github.com/ch3n4y/ha-chunmi-cooker/releases/tag/v0.1.1
 [0.1.0]: https://github.com/ch3n4y/ha-chunmi-cooker/releases/tag/v0.1.0

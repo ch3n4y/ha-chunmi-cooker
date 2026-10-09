@@ -1,7 +1,7 @@
 {
   "domain": "chunmi_cooker",
   "name": "Chunmi Rice Cooker",
-  "version": "0.1.2",
+  "version": "0.1.3",
   "documentation": "https://github.com/ch3n4y/ha-chunmi-cooker",
   "issue_tracker": "https://github.com/ch3n4y/ha-chunmi-cooker/issues",
   "codeowners": ["@ch3n4y"],

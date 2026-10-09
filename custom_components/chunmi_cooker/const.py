@@ -79,6 +79,7 @@ SERVICE_START_NOW = "start_now"
 SERVICE_CANCEL = "cancel"
 SERVICE_GET_STATUS = "get_status"
 SERVICE_LIST_RECIPES = "list_recipes"
+SERVICE_DIAGNOSE = "diagnose"
 
 CONF_DID = "did"
 CONF_MODEL = "model"

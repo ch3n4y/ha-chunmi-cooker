@@ -28,6 +28,7 @@ from .const import (
     DOMAIN,
     PLATFORMS,
     SERVICE_CANCEL,
+    SERVICE_DIAGNOSE,
     SERVICE_GET_STATUS,
     SERVICE_LIST_RECIPES,
     SERVICE_SET_RESERVATION,
@@ -149,6 +150,42 @@ async def _svc_list_recipes(hass: HomeAssistant, call: ServiceCall) -> dict:
     }
 
 
+async def _svc_diagnose(hass: HomeAssistant, call: ServiceCall) -> dict:
+    """诊断：把「云端 / 局域网 / 中枢网关」三条通道的实际状态照出来。
+
+    用于回答「这台设备到底能不能走局域网控制」。
+    **不会返回 token 原文**，只返回是否存在、长度与掩码。
+    """
+    coord = _resolve_coordinator(hass, call.data.get("did"))
+    client = coord.miot_client
+    did = coord.did
+
+    mode = getattr(client, "_ctrl_mode", None)
+    dev = (getattr(client, "device_list", None) or {}).get(did) or {}
+    token = dev.get("token")
+    lan = (getattr(client, "_device_list_lan", None) or {}).get(did)
+    gateway = (getattr(client, "_device_list_gateway", None) or {}).get(did)
+    cloud = (getattr(client, "_device_list_cloud", None) or {}).get(did) or {}
+
+    return {
+        "did": did,
+        "model": coord.model,
+        "ctrl_mode": getattr(mode, "name", str(mode)),
+        "cloud": {k: cloud.get(k) for k in
+                  ("online", "connect_type", "specv2_access")},
+        "lan": lan,
+        "lan_available": bool(lan and lan.get("online")),
+        "gateway": gateway,
+        "has_device_token": bool(token),
+        "token_length": len(token) if isinstance(token, str) else 0,
+        "token_masked": (f"{token[:4]}…{token[-4:]}"
+                         if isinstance(token, str) and len(token) >= 8 else None),
+        "note": (
+            "lan_available=true 时写操作会走局域网（官方客户端在「自动」模式下优先 LAN）。"
+            "若 ctrl_mode=CLOUD，请在 Xiaomi Home 集成配置里把控制模式改成「自动」。"),
+    }
+
+
 # --------------------------------------------------------------------- 生命周期
 async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     hass.data.setdefault(DOMAIN, {})
@@ -169,6 +206,7 @@ async def async_setup(hass: HomeAssistant, config: ConfigType) -> bool:
     await _register(SERVICE_CANCEL, TARGET_SCHEMA, _svc_cancel)
     await _register(SERVICE_GET_STATUS, TARGET_SCHEMA, _svc_get_status)
     await _register(SERVICE_LIST_RECIPES, LIST_RECIPES_SCHEMA, _svc_list_recipes)
+    await _register(SERVICE_DIAGNOSE, TARGET_SCHEMA, _svc_diagnose)
     return True
 
 
