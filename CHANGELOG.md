@@ -3,6 +3,21 @@
 本项目的所有重要变更都会记录在这里。
 格式参考 [Keep a Changelog](https://keepachangelog.com/zh-CN/1.1.0/)，版本号遵循 [语义化版本](https://semver.org/lang/zh-CN/)。
 
+## [0.1.2] - 2026-10-09
+
+### 修复
+
+- **数值为 `0` / `False` 的传感器不再显示 `unknown`**。
+  官方 `MIoTClient.get_prop_async()` 内部是 `result = await ...; if result: return result`，
+  会把合法的 `0` / `False` 当成「没取到」丢弃，导致
+  故障(`fault=0`)、口感(`taste=0`)、米种(`rice_type=0`)、食谱类型(`recipe_type=0`)、
+  水开(`boil=False`)、保温计时(`keepwarm_time=0`) 全部读成 `None`。
+
+  现在改为直接调用云端批量接口 `/app/v2/miotspec/prop/get` 一次取全部属性
+  （按 `'value' in result` 判断，`0`/`False` 正确返回），
+  未覆盖到的属性再走单点「立即」读，最后才回退官方客户端以兼容 LAN / 中枢网关设备。
+  顺带把 13 次单点请求合并成 1 次，轮询开销明显下降。
+
 ## [0.1.1] - 2026-10-09
 
 ### 新增
@@ -50,5 +65,6 @@
 - 仅在淳米 EH 系列机型上验证过协议细节。
 - 本版本已通过静态校验与协议/编解码层验证；**尚未在真实 Home Assistant 实例中完成端到端运行验证**。
 
+[0.1.2]: https://github.com/ch3n4y/ha-chunmi-cooker/releases/tag/v0.1.2
 [0.1.1]: https://github.com/ch3n4y/ha-chunmi-cooker/releases/tag/v0.1.1
 [0.1.0]: https://github.com/ch3n4y/ha-chunmi-cooker/releases/tag/v0.1.0

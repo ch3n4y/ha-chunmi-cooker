@@ -84,18 +84,63 @@ class ChunmiCookerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._recipes_ts: float = 0.0
 
     # ------------------------------------------------------------- 状态读取
-    async def _async_update_data(self) -> dict[str, Any]:
-        data: dict[str, Any] = {}
-        got_any = False
-        for key, (siid, piid) in PROPS.items():
+    async def _async_read_props(self) -> dict[str, Any]:
+        """批量读取属性。
+
+        注意：**不要**直接用 ``MIoTClient.get_prop_async()`` —— 它内部是
+        ``result = await ...; if result: return result``，会把合法的 ``0`` / ``False``
+        当成「没取到」丢掉。官方 xiaomi_home 自身的这个缺陷会导致
+        故障=0、口感=0、米种=0、食谱类型=0、水开=False、保温计时=0 全部读成 None。
+
+        这里改成直接走云端批量接口（一次请求取全部，且对 0/False 正确），
+        再用官方客户端的单点读取兜底（覆盖 LAN / 中枢网关设备）。
+        """
+        http = getattr(self.miot_client, "miot_http", None) or getattr(
+            self.miot_client, "_http", None)
+        results: list = []
+        if http is not None:
+            params = [
+                {"did": self.did, "siid": siid, "piid": piid}
+                for siid, piid in PROPS.values()
+            ]
             try:
-                value = await self.miot_client.get_prop_async(self.did, siid, piid)
+                results = await http.get_props_async(params)
             except Exception as err:  # pylint: disable=broad-exception-caught
-                _LOGGER.debug("读取属性 %s 失败: %s", key, err)
-                value = None
+                _LOGGER.debug("云端批量读取失败，回退到单点读取: %s", err)
+
+        by_id: dict[tuple[int, int], Any] = {}
+        for item in results or []:
+            if isinstance(item, dict) and "value" in item:
+                by_id[(item.get("siid"), item.get("piid"))] = item["value"]
+
+        data: dict[str, Any] = {}
+        for key, (siid, piid) in PROPS.items():
+            if (siid, piid) in by_id:
+                data[key] = by_id[(siid, piid)]
+                continue
+
+            value = None
+            if http is not None:
+                # 单点「立即」读：底层 __get_prop_async 用 `'value' in result`
+                # 判断，0 / False 不会被误丢
+                try:
+                    value = await http.get_prop_async(
+                        self.did, siid, piid, immediately=True)
+                except Exception as err:  # pylint: disable=broad-exception-caught
+                    _LOGGER.debug("单点云端读取 %s 失败: %s", key, err)
+            if value is None:
+                # 最后回退到官方客户端（覆盖 LAN / 中枢网关设备）
+                try:
+                    value = await self.miot_client.get_prop_async(
+                        self.did, siid, piid)
+                except Exception as err:  # pylint: disable=broad-exception-caught
+                    _LOGGER.debug("读取属性 %s 失败: %s", key, err)
             data[key] = value
-            if value is not None:
-                got_any = True
+        return data
+
+    async def _async_update_data(self) -> dict[str, Any]:
+        data = await self._async_read_props()
+        got_any = any(value is not None for value in data.values())
 
         if not got_any and self.data:
             # 设备是推送型、可能短暂休眠；保留上次数据，避免实体反复不可用
@@ -109,8 +154,10 @@ class ChunmiCookerCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         data["menu_name"] = MENU_NAMES.get(data.get("menu_id") or 0, "未知")
         taste = data.get("taste")
         data["taste_label"] = (
-            TREAT_LABELS[taste] if isinstance(taste, int) and taste < 3
-            else ("软" if taste == 0 else None)
+            TREAT_LABELS[taste]
+            if isinstance(taste, int) and not isinstance(taste, bool)
+            and 0 <= taste < len(TREAT_LABELS)
+            else None
         )
         return data
 
