@@ -1,5 +1,18 @@
 # Chunmi Rice Cooker for Home Assistant
 
+> **⚠️ 本仓库已归档，不再维护。**
+>
+> 最后一次发布是 `v0.1.4`，功能完整可用（状态实体、预约烹饪、局域网直连、通道诊断）。
+> 后续能力已转移到**独立的前后端分离 App**（不依赖 Home Assistant）。
+>
+> 协议层的全部成果都在这里，可以直接复用：
+> - `cookprofile.py` —— cookcode 编解码 + CRC16/CCITT-FALSE
+> - `joyami.py` —— 淳米云签名 / 食谱与加热曲线 / 完成上报
+> - `lan.py` —— miIO 局域网报文层（与官方 `miot_lan.py` 逐字节一致）
+> - `tests/test_lan.py` —— 协议层单元测试
+>
+> 仍可通过 HACS 安装使用。
+
 [![hacs_badge](https://img.shields.io/badge/HACS-Custom-41BDF5.svg)](https://github.com/hacs/integration)
 
 把**淳米（知吾煮 / chunmi）电饭煲**接进 Home Assistant，并且**复用官方 Xiaomi Home 集成已经登录的账号**——
